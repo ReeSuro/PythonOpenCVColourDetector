@@ -1,9 +1,9 @@
 from PIL import Image, ImageTk
 import tkinter as tk
 from tkinter import ttk
-import cv2
 import queue
 import numpy as np
+
 
 
 class DetectionView():
@@ -11,7 +11,7 @@ class DetectionView():
     def __init__(self):
 
         #Create image queue
-        self.imgQueue = queue.Queue(60)
+        self.imgQueue = queue.Queue(30)
 
         # Create main window   
         self.window = tk.Tk() 
@@ -29,6 +29,7 @@ class DetectionView():
         self.settingsFrame = ttk.Frame(self.window)
         self.displaySettingsFrame = ttk.Frame(self.settingsFrame, relief = tk.RAISED)
         self.filterSettingsFrame = ttk.Frame(self.settingsFrame, relief = tk.RAISED)
+        self.trackingFrame = ttk.Frame(self.settingsFrame, relief = tk.RAISED)
 
         self.slider1 = ttk.Scale(self.sliderFrame, from_ = 0, to = 179, orient='horizontal', length=200)
         self.slider2 = ttk.Scale(self.sliderFrame, from_ = 0, to = 255, orient='horizontal', length=200)
@@ -101,12 +102,18 @@ class DetectionView():
         self.noFilterRadio.bind("<ButtonRelease-1>", self.onFilterReleased)
         self.rawFilterRadio.bind("<ButtonRelease-1>", self.onFilterReleased)
         self.rawMaskFilterRadio.bind("<ButtonRelease-1>", self.onFilterReleased)
+
+        self.trackingState = tk.BooleanVar()
+        self.trackingLabel = ttk.Label(self.trackingFrame, text='Tracking')
+        self.trackingCheck = ttk.Checkbutton(self.trackingFrame, text="Colour Tracking", onvalue=True, offvalue= False, variable=self.trackingState)
+        self.trackingCheck.bind("<ButtonRelease-1>", self.onTrackingReleased)
         ####   Arrange window   ####
         self.titleLabel.pack(side = tk.TOP, pady=(20,10))
         self.sliderFrame.pack(side = tk.RIGHT, padx = (20,50), pady = (50,50), anchor=tk.NE)
         self.settingsFrame.pack(side = tk.RIGHT, padx = (0,10), pady = (50,50), anchor = tk.NE)
         self.displaySettingsFrame.pack(pady = (0,50))
-        self.filterSettingsFrame.pack()
+        self.filterSettingsFrame.pack(pady = (0,50))
+        self.trackingFrame.pack()
         self.videoFrame.pack()
         self.canvas.pack()
 
@@ -142,13 +149,16 @@ class DetectionView():
         self.noFilterRadio.pack(anchor = tk.W)
         self.rawFilterRadio.pack(anchor = tk.W)
         self.rawMaskFilterRadio.pack(anchor = tk.W)
+
+        self.trackingLabel.pack()
+        self.trackingCheck.pack(anchor = tk.W)
         #GUI Flags flag
         self.HSVChanged = False
         self.displaySettingChanged = False
         self.filterSettingChanged = False
-
+        self.trackingChanged = False
         #Set up displaying event
-        self.window.after(2, self.updateVideoFeed)
+        self.window.after(1, self.updateVideoFeed)
 
     def updateVideoFeed(self):
         if self.imgQueue.qsize() > 0:
@@ -157,7 +167,7 @@ class DetectionView():
             self.videoFrame = ImageTk.PhotoImage(image = Image.fromarray(newFrame))
             self.canvas.create_image(0,0,image = self.videoFrame, anchor = tk.NW)
             
-        self.window.after(2, self.updateVideoFeed)    
+        self.window.after(1, self.updateVideoFeed)    
 
     def onSliderReleased(self,event):
          ##Create an image array based on the hsv slider values
@@ -187,14 +197,15 @@ class DetectionView():
     def onFilterReleased(self, event):
         self.filterSettingChanged = True   
 
+    def onTrackingReleased(self, event):
+        self.trackingChanged = True
+
     def addFrame(self,frame):
           if(self.imgQueue.qsize() < 50):
                 self.imgQueue.put(frame)
-                print("Adding to queue ")
           else:
                 self.imgQueue.get()
                 self.imgQueue.put(frame)
-                print("queue full removing and adding ")
 
     def hsvChanged(self):
         return self.HSVChanged
@@ -211,6 +222,9 @@ class DetectionView():
     def fsChanged(self):
         return self.filterSettingChanged
 
+    def trChanged(self):
+        return self.trackingChanged
+
     def getDisplaySetting(self):
         self.displaySettingChanged = False
         return self.displaySetting.get()
@@ -218,6 +232,10 @@ class DetectionView():
     def getFilterSetting(self):
         self.filterSettingChanged = False
         return self.filterSetting.get()
+
+    def getTrackingSetting(self):
+        self.trackingChanged = False
+        return self.trackingState.get()
 
     def onClosing(self):
         self.window.destroy()

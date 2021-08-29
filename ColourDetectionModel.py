@@ -16,21 +16,20 @@ class ColourDetector():
 
         self.filterSetting = 0
         self.displaySetting = 0
-
+        self.trackingSetting = False
 
     def getProcessedFrame(self):
-            print(self.upperHSV)
-            print(self.lowerHSV)
+           
             ret, frame = self.cam.read() # Read the camera frame
             ##Return the raw frame
             if self.displaySetting == 0:
-                return cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+                return None, cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
 
             ##Return HSV Frame
             hsvFrame = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV) # Convert to HSV
 
             if self.displaySetting == 1:
-                return hsvFrame
+                return None, hsvFrame
 
             ##If image filtering is selected use Gaussian Blurring on HSV Image
             if self.filterSetting == 1 or self.filterSetting == 2:
@@ -42,9 +41,9 @@ class ColourDetector():
             mask = cv2.inRange(filteredhsvFrame, self.lowerHSV, self.upperHSV) # Create mask given threshold values
 
             if self.displaySetting == 2:
-                return mask
+                return None, mask
 
-            contours, heirachy = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+            contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
             ##Set return image
             if self.displaySetting == 3:
@@ -53,7 +52,33 @@ class ColourDetector():
                 retImage = hsvFrame
             else:        
                 retImage = mask
-            for c in contours:
+
+            
+            #If tracking is enabled then find the largest contour and colour it red
+            if self.trackingSetting == True:
+                largestValues = np.array([-1,-1,-1,-1])
+                largestArea = -1
+                for c in contours:
+                    
+                    x,y,w,h = cv2.boundingRect(c)
+                    #Check the area of the rectangle
+                    area = w*h
+                    if area > largestArea:
+                        largestArea = area
+                        largestValues[:] = ([x,y,w,h])
+
+                    if(self.filterSetting == 2):
+                        if not(w < 10 or h < 10):
+                            cv2.rectangle(retImage, (x,y), (x+w, y+h), (0,255,0), 2)
+                    else:
+                        cv2.rectangle(retImage, (x,y), (x+w, y+h), (0,255,0), 2)
+                
+                if largestArea > -1:
+                     cv2.rectangle(retImage, (largestValues[0],largestValues[1]), (largestValues[0]+largestValues[2], largestValues[1]+largestValues[3]), (255,0,0), 2)
+            
+            else:
+
+                for c in contours:
                  x,y,w,h = cv2.boundingRect(c)
                  if(self.filterSetting == 2):
                     if not(w < 5 or h < 5):
@@ -61,14 +86,11 @@ class ColourDetector():
                  else:
                     cv2.rectangle(retImage, (x,y), (x+w, y+h), (0,255,0), 2)
                 
-
             ##Return image
-            return retImage
-
-    def filterBinaryMask(mask):
-        mask
-
-        return
+            if self.trackingSetting == True:
+                return largestValues, retImage
+            elif self.trackingSetting == False:
+                return None, retImage
 
     def setUpperHSV(self, valArray):
         self.upperHSV = valArray
@@ -82,4 +104,8 @@ class ColourDetector():
     def setFilterSetting(self,val):
         self.filterSetting = val
 
-    
+    def setTrackingSetting(self, val):
+        self.trackingSetting = val
+
+
+
