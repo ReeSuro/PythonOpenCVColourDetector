@@ -14,13 +14,13 @@ class DetectorController(threading.Thread):
         self.name = name
         self.cd = colourDetector
         self.view = view
-        self.running = False
-        self.ServoController = servoController
+        self.running = False #Flag to control thread operation 
+        self.servoController = servoController
 
     def run(self):
         self.running = True
         while True:
-            result, frame = self.cd.getProcessedFrame()
+            result, frame = self.cd.getProcessedFrame(None)
             self.view.addFrame(frame)
             #Check if the HSV Values have changed
             if self.view.hsvChanged() == True:
@@ -43,12 +43,13 @@ class DetectorController(threading.Thread):
                 self.cd.setTrackingSetting(newSetting)
 
             ##Check if the gui window has closed
-            if not self.running:
-                return
+            if self.view.running is False:
+                break
 
             ##Move servo values based on the position of the center of the largest contour
-            if not result[0] == -1:
-                self.trackLargestContour(result)
+            if result is not None:
+                if result[0] is not -1:
+                    self.trackLargestContour(result, 0.01)
 
             time.sleep(0.001)
 
@@ -58,36 +59,19 @@ class DetectorController(threading.Thread):
         #Calculate centre point of rectangle
         recCentreX = result[0] + round(result[2]/2)
         recCentreY = result[1] + round(result[3]/2)
+        
         #Calculate centre point position relative to the centre of the camera frame
         frameCentreX = 320
         frameCentreY = 240
+        
         #Move left or right
         if recCentreX > (frameCentreX + 20):
-            self.servoController.moveAlongX(0.01)
+            self.servoController.moveAlongX(speedValue)
         elif recCentreX < (frameCentreX - 20):
-            self.servoController.moveAlongX(-0.01)
+            self.servoController.moveAlongX(-speedValue)
         
         #Move up or down 
-
         if recCentreY > (frameCentreY + 20):
-            self.servoController.moveAlongY(0.01)
+            self.servoController.moveAlongY(speedValue)
         elif recCentreY < (frameCentreY - 20):
-            self.servoController.moveAlongY(-0.01)
-
-    def terminate(self):
-        self.running = False        
-
-def main():
-    #Create model
-    detector = ColourDetector()
-    view = DetectionView()
-    #Create controller
-    servoController = ServoController()
-    controller = DetectorController(detector,view, servoController)
-    controller.start()
-    #Start the gui
-    view.window.mainloop()
-    controller.terminate()
-
-if (__name__ == "__main__"):
-     main()
+            self.servoController.moveAlongY(-speedValue)

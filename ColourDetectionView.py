@@ -3,8 +3,7 @@ import tkinter as tk
 from tkinter import ttk
 import queue
 import numpy as np
-
-
+import time
 
 class DetectionView():
 
@@ -157,17 +156,18 @@ class DetectionView():
         self.displaySettingChanged = False
         self.filterSettingChanged = False
         self.trackingChanged = False
+        self.running = True
         #Set up displaying event
         self.window.after(1, self.updateVideoFeed)
 
     def updateVideoFeed(self):
+        #If there is an available frame in the queue then display on the canvas
         if self.imgQueue.qsize() > 0:
-            print(self.imgQueue.qsize())
             newFrame = self.imgQueue.get()
             self.videoFrame = ImageTk.PhotoImage(image = Image.fromarray(newFrame))
             self.canvas.create_image(0,0,image = self.videoFrame, anchor = tk.NW)
-            
-        self.window.after(1, self.updateVideoFeed)    
+        if(self.running is True):   
+            self.window.after(1, self.updateVideoFeed)    
 
     def onSliderReleased(self,event):
          ##Create an image array based on the hsv slider values
@@ -201,6 +201,7 @@ class DetectionView():
         self.trackingChanged = True
 
     def addFrame(self,frame):
+        #Add a new frame to the queue
           if(self.imgQueue.qsize() < 50):
                 self.imgQueue.put(frame)
           else:
@@ -216,7 +217,6 @@ class DetectionView():
         round(self.slider4.get()),round(self.slider5.get()),round(self.slider6.get())], np.uint8)
 
     def dsChanged(self):
-        print(self.displaySettingChanged)
         return self.displaySettingChanged
 
     def fsChanged(self):
@@ -238,4 +238,7 @@ class DetectionView():
         return self.trackingState.get()
 
     def onClosing(self):
+        #When the window is closed set a flag and destroy the resource
+        self.running = False
+        time.sleep(0.5)
         self.window.destroy()
